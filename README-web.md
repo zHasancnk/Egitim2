@@ -8,9 +8,14 @@ gerekmez (kurulumdan sonra), tüm sesler ailenin kendi kaydı.
 1. GitHub'da yeni **public** repo açın (örn. `gunesim-ogreniyor`).
    Public olması sorun değil: ses kayıtları repoda değil, cihazda durur.
    Çocuğun fotoğrafını ve adını repoya **koymayın** (uygulama zaten emoji kullanır).
-2. Bu klasördeki her şeyi repoya yükleyin (`web/` + `.github/workflows/pages.yml`
-   dahil — klasör yapısını aynen koruyun).
-3. Repo → **Settings → Pages → Source: GitHub Actions** seçin.
+2. `web/` klasörünün **içindekileri** (index.html, *.js, *.css, *.svg,
+   manifest.webmanifest, sw.js) repoda **kök dizine** yükleyin — alt klasör
+   açmadan, tüm dosyalar düz dursun. (GitHub Actions ile yayın yapacaksanız
+   `.github/workflows` klasörünü de olduğu gibi ekleyin.)
+3. Repo → **Settings → Pages → Source** kısmında iki seçenek görürsünüz:
+   **GitHub Actions** seçin (bizim yayın dosyamız ona göredir). "Deploy from
+   a branch" seçerseniz de çalışır (main dalı + /(root)), çünkü dosyalar
+   zaten kökte duruyor.
 4. `main` dalına her push'ta site otomatik yayınlanır:
    `https://<kullanıcı-adı>.github.io/<repo-adı>/`
 5. Telefondan ve bilgisayardan bu linki açın → tarayıcı menüsü →
@@ -40,7 +45,7 @@ gerekmez (kurulumdan sonra), tüm sesler ailenin kendi kaydı.
 
 ## 4) Yeni içerik paketi ekleme
 
-`web/js/icerik.js` dosyasına grup/öğe ekleyin
+`icerik.js` dosyasına grup/öğe ekleyin
 (`{ anahtar, metin, foto, heceler?, hedefSes? }`), push'layın — site güncellenir.
 Yeni öğeler kayıt stüdyosunda otomatik görünür.
 

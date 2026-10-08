@@ -1,10 +1,10 @@
 /* Güneşim Öğreniyor PWA — servis çalışanı (çevrimdışı kabuk) */
-const SURUM = 'gunesim-v2';
+const SURUM = 'gunesim-v3';
 const KABUK = [
   './', 'index.html', 'manifest.webmanifest',
-  'css/stiller.css',
-  'js/icerik.js', 'js/db.js', 'js/ses.js', 'js/zip.js', 'js/app.js', 'js/panel.js',
-  'ikon/ikon-192.svg', 'ikon/ikon-512.svg'
+  'stiller.css',
+  'icerik.js', 'db.js', 'ses.js', 'zip.js', 'app.js', 'panel.js',
+  'ikon-192.svg', 'ikon-512.svg'
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SURUM).then((c) => c.addAll(KABUK)).then(() => self.skipWaiting()));

@@ -7,13 +7,13 @@
 <meta name="description" content="Güneşim Öğreniyor — ailenin kendi sesiyle Down sendromu bireyler için eğitim.">
 <title>Güneşim Öğreniyor ☀️</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="ikon/ikon-192.svg" type="image/svg+xml">
+<link rel="icon" href="ikon-192.svg" type="image/svg+xml">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Güneşim">
-<link rel="apple-touch-icon" href="ikon/ikon-192.svg">
-<link rel="stylesheet" href="css/stiller.css">
+<link rel="apple-touch-icon" href="ikon-192.svg">
+<link rel="stylesheet" href="stiller.css">
 </head>
 <body>
 <header id="ustbar" hidden>
@@ -51,19 +51,19 @@ window.addEventListener('error', function (e) {
       '<b>Çözüm:</b><ol>' +
       '<li>Adresin <b>...github.io/REPO-ADI/</b> ile bittiğinden emin olun.</li>' +
       '<li>Repoda şu dosyalar olmalı: index.html, manifest.webmanifest, sw.js, ' +
-      'css/stiller.css, js/ (icerik, db, ses, zip, app, panel), ikon/.</li>' +
+      'stiller.css, icerik.js, db.js, ses.js, zip.js, app.js, panel.js, ikon-192.svg, ikon-512.svg.</li>' +
       '<li><b>Ctrl+Shift+R</b> ile önbelleksiz yenileyin.</li>' +
       '<li>Olmazsa F12 → Console sekmesindeki kırmızı yazıyı gönderin.</li>' +
       '</ol></div>';
   }
 }, true);
 </script>
-<script src="js/icerik.js"></script>
-<script src="js/db.js"></script>
-<script src="js/ses.js"></script>
-<script src="js/zip.js"></script>
-<script src="js/app.js"></script>
-<script src="js/panel.js"></script>
+<script src="icerik.js"></script>
+<script src="db.js"></script>
+<script src="ses.js"></script>
+<script src="zip.js"></script>
+<script src="app.js"></script>
+<script src="panel.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
