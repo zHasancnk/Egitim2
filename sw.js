@@ -1,5 +1,5 @@
 /* Güneşim Öğreniyor PWA — servis çalışanı (çevrimdışı kabuk) */
-const SURUM = 'gunesim-v1';
+const SURUM = 'gunesim-v2';
 const KABUK = [
   './', 'index.html', 'manifest.webmanifest',
   'css/stiller.css',

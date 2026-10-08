@@ -21,8 +21,43 @@
   <span id="baslik-orta">☀️ Güneşim</span>
   <span id="sure">⏱ 15:00</span>
 </header>
-<main id="ekran" aria-live="polite"></main>
+<main id="ekran" aria-live="polite">
+  <div class="orta"><div class="buyuk-emoji">☀️</div><p>Yükleniyor...</p></div>
+  <noscript><div class="orta"><h1>JavaScript kapalı</h1>
+  <p>Bu uygulama için tarayıcıda JavaScript açık olmalı.</p></div></noscript>
+</main>
 <div id="bilgi" role="status" aria-live="polite"></div>
+<script>
+/* Önyükleme bekçisi: uygulama açılmadan hata olursa beyaz ekran yerine
+   nedenini ve çözümünü gösterir. */
+window.__hatalar = [];
+window.addEventListener('error', function (e) {
+  var t = e.target || {};
+  var mesaj;
+  if (t.tagName === 'SCRIPT' || t.tagName === 'LINK') {
+    var yol = (t.src || t.href || '').split('/').slice(-2).join('/');
+    mesaj = 'Dosya yüklenemedi: ' + yol + ' (repoya eksik yüklenmiş olabilir)';
+  } else {
+    mesaj = 'JS hatası: ' + (e.message || '') +
+      ' (' + ((e.filename || '').split('/').pop() || '?') + ':' + (e.lineno || '?') + ')';
+  }
+  window.__hatalar.push(mesaj);
+  var ekran = document.getElementById('ekran');
+  if (ekran && !window.__uygulamaBasladi) {
+    var liste = window.__hatalar.map(function (m) { return '<li>' + m + '</li>'; }).join('');
+    ekran.innerHTML =
+      '<div class="orta"><div class="buyuk-emoji">😕</div><h1>Sayfa açılamadı</h1></div>' +
+      '<div class="kutu"><b>Bulgu:</b><ul>' + liste + '</ul>' +
+      '<b>Çözüm:</b><ol>' +
+      '<li>Adresin <b>...github.io/REPO-ADI/</b> ile bittiğinden emin olun.</li>' +
+      '<li>Repoda şu dosyalar olmalı: index.html, manifest.webmanifest, sw.js, ' +
+      'css/stiller.css, js/ (icerik, db, ses, zip, app, panel), ikon/.</li>' +
+      '<li><b>Ctrl+Shift+R</b> ile önbelleksiz yenileyin.</li>' +
+      '<li>Olmazsa F12 → Console sekmesindeki kırmızı yazıyı gönderin.</li>' +
+      '</ol></div>';
+  }
+}, true);
+</script>
 <script src="js/icerik.js"></script>
 <script src="js/db.js"></script>
 <script src="js/ses.js"></script>
