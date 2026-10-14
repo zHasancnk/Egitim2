@@ -1,5 +1,5 @@
-const C = 'benimle-ogren-v3';
-const FILES = ['./', './index.html', './core.js', './data.js', './passage.js', './voice.js', './app.js', './manifest.webmanifest', './icon.svg'];
+const C = 'benimle-ogren-v4';
+const FILES = ['./', './index.html', './core.js', './data.js', './passage.js', './voice.js', './qr.js', './app.js', './sync.js', './fx.js', './learn.js', './main.js', './learn.css', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim()));

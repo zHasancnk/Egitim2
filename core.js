@@ -80,6 +80,7 @@ const PHRASES = [
   { k: 'ui:tekrar', t: 'Tekrar edelim', g: 'Yönergeler' },
   { k: 'ui:bitti', t: 'Bugünlük bu kadar', g: 'Yönergeler' },
   { k: 'ui:yarin', t: 'Yarın görüşürüz', g: 'Yönergeler' },
+  { k: 'ui:yeni', t: 'Yeni kelimeler', g: 'Yönergeler' },
   { k: 'fb:harika', t: 'Harika!', g: 'Geri bildirim' },
   { k: 'fb:guzel', t: 'Güzel!', g: 'Geri bildirim' },
   { k: 'fb:super', t: 'Süpersin!', g: 'Geri bildirim' },
@@ -87,6 +88,7 @@ const PHRASES = [
   { k: 'fb:cokguzel', t: 'Çok güzel!', g: 'Geri bildirim' },
   { k: 'fb:dogru', t: 'Doğru!', g: 'Geri bildirim' },
   { k: 'fb:aferin', t: 'Aferin sana', g: 'Geri bildirim' },
+  { k: 'fb:muhtesem', t: 'Muhteşem!', g: 'Geri bildirim' },
   { k: 'fb:bir-daha', t: 'Bir daha deneyelim', g: 'Geri bildirim' },
   { k: 'fb:yaklastin', t: 'Çok yaklaştın', g: 'Geri bildirim' }
 ];

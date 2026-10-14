@@ -7,12 +7,13 @@ const TUNE = { retryBaseMs: 1000, gen: 3, qc: 2 };
 class BridgeError extends Error {
   constructor(msg, kind, status) { super(msg); this.kind = kind; this.status = status || 0; this.retryAfter = 0; }
 }
-const FATAL = ['auth', 'origin', 'elauth', 'plan', 'config'];
+const FATAL = ['auth', 'origin', 'elauth', 'elperm', 'plan', 'config', 'nokv'];
+const pageOrigin = () => (typeof location !== 'undefined' ? location.origin : '');
 
 function bridgeKind(status, upstream) {
   const s = upstream || status;
   if (status === 401) return ['auth', 'Köprü parolası yanlış.'];
-  if (status === 403 && !upstream) return ['origin', 'Köprü bu siteden gelen isteği reddetti. Köprüdeki ALLOWED_ORIGIN değerini site adresinizle aynı yapın.'];
+  if (status === 403 && !upstream) return ['origin', 'Köprü bu siteden gelen isteği reddetti. Bu sayfanın adresi: ' + pageOrigin() + '. ' + (typeof location !== 'undefined' && location.protocol === 'file:' ? 'Sayfa dosyadan açılmış; siteyi GitHub Pages adresinden açın.' : 'Köprüdeki ALLOWED_ORIGIN değişkeni bunu içermeli.')];
   if (s === 401) return ['elauth', 'ElevenLabs API anahtarı geçersiz (köprüdeki ELEVEN_API_KEY).'];
   if (s === 402) return ['plan', 'Hesabınızın planı veya kredisi bu işlem için yetersiz.'];
   if (s === 403) return ['plan', 'ElevenLabs bu işleme izin vermedi (plan veya anahtar izni).'];
@@ -24,17 +25,31 @@ function bridgeKind(status, upstream) {
 const Bridge = {
   cfg() { const c = LS.get('bridge', {}); return { url: String(c.url || '').trim().replace(/\/+$/, ''), token: String(c.token || '').trim() }; },
   ready() { const c = Bridge.cfg(); return !!(c.url && c.token); },
-  async req(path, { method = 'GET', json, form } = {}) {
+  async req(path, { method = 'GET', json, form, text } = {}) {
     const c = Bridge.cfg();
     if (!c.url || !c.token) throw new BridgeError('Köprü adresi ve parolası girilmemiş.', 'config');
     const headers = { Authorization: 'Bearer ' + c.token }; let body;
-    if (json) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(json); } else if (form) body = form;
+    if (json) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(json); } else if (form) body = form; else if (text != null) { headers['Content-Type'] = 'text/plain'; body = text; }
     let r;
     try { r = await fetch(c.url + path, { method, headers, body }); }
-    catch (e) { throw new BridgeError('Köprüye bağlanılamadı. Adres doğru mu, internet var mı?', 'network'); }
+    catch (e) {
+      const file = typeof location !== 'undefined' && location.protocol === 'file:';
+      throw new BridgeError('Köprüye bağlanılamadı. Köprü adresini kontrol edin.' + (file
+        ? ' Sayfa dosyadan açılmış görünüyor; siteyi GitHub Pages adresinden açın.'
+        : ' Bu sayfanın adresi: ' + pageOrigin() + '. Köprüdeki ALLOWED_ORIGIN değişkeni bununla aynı olmalı.'), 'network');
+    }
     if (!r.ok) {
       let j = null; try { j = await r.json(); } catch (e) {}
-      const [kind, msg] = bridgeKind(r.status, j && j.status);
+      let [kind, msg] = bridgeKind(r.status, j && j.status);
+      const det = j && j.detail ? String(j.detail) : '';
+      if (/voice_cloning|instant_voice|upgrade|subscription|paid_plan/i.test(det)) { kind = 'plan'; msg = 'Bu hesap planında ses klonlama yok. ElevenLabs\'te ücretli bir plana (Starter ve üstü) geçmeniz gerekir.'; }
+      else if (/quota_exceeded|insufficient_credits|credits/i.test(det)) { kind = 'plan'; msg = 'ElevenLabs kredisi bitti veya yetersiz.'; }
+      else if (/missing_permissions/i.test(det)) {
+        const pm = det.match(/permission\s+["']?([a-z_]+)/i); kind = 'elperm';
+        msg = 'ElevenLabs API anahtarında izin eksik' + (pm ? ' (' + pm[1] + ')' : '') + '. ElevenLabs → API Keys → anahtarı düzenleyin: "Voices" satırını Write yapın (ya da "Restrict Key"i kapatın).';
+      }
+      else if (kind === 'elauth' && det && !/invalid_api_key|invalid api key/i.test(det)) { msg = 'ElevenLabs isteği reddetti (401): ' + det.replace(/[{}"\\]/g, '').slice(0, 160); }
+      if (r.status === 501 && j && j.code === 'nokv') { kind = 'nokv'; msg = j.error; }
       const err = new BridgeError(msg + ((j && j.detail && kind === 'invalid') ? ' (' + String(j.detail).slice(0, 140) + ')' : ''), kind, r.status);
       err.retryAfter = +r.headers.get('retry-after') || 0; throw err;
     }
@@ -56,6 +71,11 @@ const Bridge = {
     const f = new FormData(); f.append('file', blob, 'klip.wav');
     return String((await (await Bridge.req('/stt', { method: 'POST', form: f })).json()).text || '');
   },
+  async syncManifestGet() { return (await Bridge.req('/sync/manifest')).json(); },
+  async syncManifestPut(m) { await Bridge.req('/sync/manifest', { method: 'PUT', json: m }); },
+  async syncChunkPut(name, text) { await Bridge.req('/sync/chunk/' + name, { method: 'PUT', text }); },
+  async syncChunkGet(name) { return (await Bridge.req('/sync/chunk/' + name)).text(); },
+  async syncChunkDel(name) { await Bridge.req('/sync/chunk/' + name, { method: 'DELETE' }); },
   async del(voiceId) { return (await Bridge.req('/voice/' + encodeURIComponent(voiceId), { method: 'DELETE' })).json(); }
 };
 
