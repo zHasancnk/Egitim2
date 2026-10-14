@@ -201,3 +201,7 @@ body.learner{background:var(--lbg);color:var(--link)}
 @media (min-width:700px){.opt.p{min-height:0}.page,.path{padding-left:6px;padding-right:6px}}
 
 body.learner #toast{bottom:96px}
+
+.pic2 img.svgp{object-fit:contain;padding:10%}
+.opt.p img.svgp{width:78%;height:78%;object-fit:contain}
+.thumb img.svgp{object-fit:contain}

@@ -67,8 +67,10 @@ async function loadPhoto(id) {
   if (r) photoUrls[id] = URL.createObjectURL(new Blob([r.buf], { type: r.type }));
 }
 async function loadPhotos() { for (const k of await DB.keys()) if (typeof k === 'string' && k.startsWith('img|')) await loadPhoto(k.slice(4)); }
-const hasPic = w => !!(photoUrls[w.id] || w.emoji);
-const picHtml = w => photoUrls[w.id] ? `<img src="${photoUrls[w.id]}" alt="">` : (w.emoji ? `<span class="emoji" aria-hidden="true">${esc(w.emoji)}</span>` : '');
+const svgOf = w => (PICS[w.id] ? 'img/' + PICS[w.id][0] + '.svg' : '');
+const hasPic = w => !!(photoUrls[w.id] || svgOf(w) || w.emoji);
+const hasQPic = w => !!(photoUrls[w.id] || (PICS[w.id] && PICS[w.id][1] === 'a'));
+const picHtml = w => photoUrls[w.id] ? `<img src="${photoUrls[w.id]}" alt="">` : svgOf(w) ? `<img class="svgp" src="${svgOf(w)}" alt="">` : (w.emoji ? `<span class="emoji" aria-hidden="true">${esc(w.emoji)}</span>` : '');
 
 /* ---------- müfredat ---------- */
 const inCurr = w => !S.cfg.hidden.includes(w.id) && S.cfg.levels.includes(w.level) && (!S.cfg.themes.length || S.cfg.themes.includes(w.theme));
@@ -369,6 +371,8 @@ PANEL.mufredat = () => {
   const wq = V.wq ? ALL.filter(w => normTR(w.word).includes(normTR(V.wq))).slice(0, 25) : [];
   return `<div class="box"><h3>Çalışılacak içerik</h3>
     <div class="kv"><div>Seçili kelime<b>${cw.length}</b></div><div>Sesi hazır<b>${uw.length}</b></div><div>Seçili hece<b>${sylTot.size}</b></div><div>Sesi hazır hece<b>${cs.length}</b></div></div>
+    <p><b>Görseller:</b> ${ALL.filter(hasPic).length} / ${ALL.length} kelimede görsel var, ${ALL.filter(hasQPic).length} tanesi "Bul" etkinliğinde kullanılıyor. Soyut kelimelerin (fiil, zamir, bağlaç...) doğru bir resmi olmadığı için resimsizdir; bunlar yazı ve ses ile çalışılır.</p>
+    <details><summary>Görseli olmayan kelimeleri göster</summary><p style="line-height:1.9">${ALL.filter(w => !hasPic(w)).map(w => esc(w.word)).join(' · ')}</p></details>
     <p><b>Seviye</b> (kelimenin hece sayısı, kapalı hece ve ünsüz yığılmasına göre otomatik):</p>
     <div class="chips">${[1, 2, 3, 4, 5].map(l => `<button class="pill ${S.cfg.levels.includes(l) ? 'on' : ''}" data-act="lvl" data-l="${l}" title="${esc(LEVEL_TXT[l])}">${l} · ${ALL.filter(w => w.level === l).length}</button>`).join('')}</div>
     <p>${S.cfg.levels.map(l => l + ': ' + LEVEL_TXT[l]).join(' · ')}</p>

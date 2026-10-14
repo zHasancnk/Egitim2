@@ -125,7 +125,7 @@ ACT.lesson = d => {
 
 /* ---------- ekranlar: pratik ---------- */
 VIEWS.practice = () => {
-  const uw = usableWords(), np = uw.filter(hasPic).length, ns = currSyl().length;
+  const uw = usableWords(), np = uw.filter(hasQPic).length, ns = currSyl().length;
   const t = (m, col, ic, name, sub, ok) => `<button class="ptile" style="--tc:${col}" data-act="prac" data-m="${m}" ${ok ? '' : 'disabled'}><span aria-hidden="true">${ic}</span>${name}<small>${sub}</small></button>`;
   return `<div class="wrap">${topbar()}<main class="page"><h2>Pratik yap</h2><div class="pgrid">
     <button class="ptile wide" style="--tc:#7c5cff" data-act="prac" data-m="mix" ${uw.length >= 3 ? '' : 'disabled'}><span aria-hidden="true">🎲</span><div>Karışık<br><small>Her türden birkaç soru</small></div></button>
@@ -151,11 +151,11 @@ VIEWS.rewards = () => {
 };
 
 /* ---------- ders kurulumu ---------- */
-const picPool = () => usableWords().filter(hasPic);
+const picPool = () => usableWords().filter(hasQPic);
 const sylReady = w => w.syl.length > 1 && w.syl.every(s => hasKey('y:' + s));
 function wordSteps(ws, full) {
   const steps = [], pp = picPool().length >= 3;
-  ws.forEach(w => { steps.push({ t: 'intro', w }); steps.push(pp && hasPic(w) ? { t: 'pic', w } : { t: 'txt', w }); });
+  ws.forEach(w => { steps.push({ t: 'intro', w }); steps.push(pp && hasQPic(w) ? { t: 'pic', w } : { t: 'txt', w }); });
   if (full) {
     shuffle(ws.filter(sylReady)).slice(0, 2).forEach(w => steps.push({ t: 'sirala', w }));
     shuffle(ws).slice(0, 2).forEach(w => steps.push({ t: 'konus', w }));
@@ -179,13 +179,13 @@ function startPractice(m) {
   if (m === 'oku') steps = pickBy(uw, 'oku', 5, w => w.id).map(w => ({ t: 'intro', w, prac: true }));
   else if (m === 'hece') steps = pickBy(currSyl(), 'hece', 6, s => s).map(s => ({ t: 'hece', syl: s }));
   else if (m === 'konus') steps = pickBy(uw, 'konus', 4, w => w.id).map(w => ({ t: 'konus', w }));
-  else if (m === 'bul') steps = pickBy(uw.filter(hasPic), 'bul', 5, w => w.id).map(w => ({ t: 'pic', w }));
+  else if (m === 'bul') steps = pickBy(uw.filter(hasQPic), 'bul', 5, w => w.id).map(w => ({ t: 'pic', w }));
   else if (m === 'yaz') {
     const seen = new Set();
     pickBy(uw, 'yaz', 14, w => w.id).forEach(w => { const L = trUpper(w.word.charAt(0)); if (seen.has(L) || steps.length >= 5) return; seen.add(L); steps.push({ t: 'yaz', w, letter: CASE_MODE === 'lower' ? trLower(L) : L }); });
   } else {
     const ws = shuffle(uw).slice(0, 8), pp = picPool().length >= 3, sy = currSyl();
-    ws.slice(0, 3).forEach(w => steps.push(pp && hasPic(w) ? { t: 'pic', w } : { t: 'txt', w }));
+    ws.slice(0, 3).forEach(w => steps.push(pp && hasQPic(w) ? { t: 'pic', w } : { t: 'txt', w }));
     if (sy.length >= 3) shuffle(sy).slice(0, 2).forEach(s => steps.push({ t: 'hece', syl: s }));
     ws.filter(sylReady).slice(0, 1).forEach(w => steps.push({ t: 'sirala', w }));
     ws.slice(3, 5).forEach(w => steps.push({ t: 'konus', w }));
