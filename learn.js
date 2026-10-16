@@ -20,7 +20,8 @@ const LEARNER_VIEWS = new Set(['home', 'path', 'practice', 'rewards', 'ders', 'd
 /* ---------- öğrenme yolu ---------- */
 const UCOL = ['#7c5cff', '#1f9d8a', '#ff8a5c', '#3b8be0', '#e0559c', '#d99a00'];
 const DXS = [0, 44, 66, 44, 0, -44, -66, -44];
-const UNIT_WORDS = 20, LESSON_WORDS = 4, UNIT_SYL = 16;
+const UNIT_WORDS = 20, LESSON_WORDS = 4, UNIT_SYL = 16, UNIT_DLG = 4;
+const dlgReady = d => d.l.every((_, i) => hasKey(dKey(d.id, i, 'p')) && hasKey(dKey(d.id, i, 's')));
 let _sylOrder = null;
 const sylOrder = s => { if (!_sylOrder) { _sylOrder = new Map(); SYLLABLES.forEach((r, i) => _sylOrder.set(r[0], i)); } return _sylOrder.has(s) ? _sylOrder.get(s) : 9999; };
 
@@ -45,18 +46,28 @@ function buildPath() {
   }
   const su = [], sy = currSyl().sort((a, b) => sylOrder(a) - sylOrder(b));
   for (let i = 0; i < sy.length; i += UNIT_SYL) su.push({ kind: 'y', level: 0, title: 'Heceler', emoji: '🔤', items: sy.slice(i, i + UNIT_SYL) });
-  const units = []; let si = 0;
-  wu.forEach((u, i) => { units.push(u); const target = Math.floor((i + 1) * su.length / wu.length); while (si < target) units.push(su[si++]); });
-  while (si < su.length) units.push(su[si++]);
-  const lessons = []; let wn = 0, sn = 0;
+  const dl = DIALOGS.filter(dlgReady), du = [];
+  for (let i = 0; i < dl.length; i += UNIT_DLG) du.push({ kind: 'd', level: 0, title: 'Sohbet', emoji: '💬', items: dl.slice(i, i + UNIT_DLG).map(d => d.id) });
+  /* hece ve sohbet birimleri kelime birimlerinin arasına eşit aralıkla serpiştirilir */
+  const extra = []; let a = 0, b = 0;
+  while (a < su.length || b < du.length) {
+    if (a < su.length && (b >= du.length || a / su.length <= b / du.length)) extra.push(su[a++]); else extra.push(du[b++]);
+  }
+  const units = []; let ei = 0;
+  wu.forEach((u, i) => { units.push(u); const target = Math.floor((i + 1) * extra.length / wu.length); while (ei < target) units.push(extra[ei++]); });
+  while (ei < extra.length) units.push(extra[ei++]);
+  const lessons = []; let wn = 0, sn = 0, dn = 0;
+  const addL = (u, ui, L) => { L.unit = ui; L.gi = lessons.length; u.lessons.push(L); lessons.push(L); };
   units.forEach((u, ui) => {
-    u.idx = ui; u.num = u.kind === 'w' ? ++wn : ++sn; u.lessons = [];
+    u.idx = ui; u.num = u.kind === 'w' ? ++wn : u.kind === 'y' ? ++sn : ++dn; u.lessons = [];
     u.col = UCOL[ui % UCOL.length];
-    chunkLessons(u.items, u.kind === 'w' ? LESSON_WORDS : LESSON_WORDS).forEach((items, n) => {
+    if (u.kind === 'd') { u.items.forEach((id, n) => addL(u, ui, { id: 'd:' + id, kind: 'd', items: [id], n })); return; }
+    chunkLessons(u.items, LESSON_WORDS).forEach((items, n) => {
       const first = u.kind === 'w' ? items[0].id : items[0];
-      const L = { id: u.kind + ':' + first + ':' + items.length, kind: u.kind, items, unit: ui, n, gi: lessons.length };
-      u.lessons.push(L); lessons.push(L);
+      addL(u, ui, { id: u.kind + ':' + first + ':' + items.length, kind: u.kind, items, n });
+      if (u.kind === 'w') addL(u, ui, { id: 'w2:' + first + ':' + items.length, kind: 'w2', items, n });
     });
+    if (u.kind === 'w' && u.items.length >= 6) addL(u, ui, { id: 'r:' + u.items[0].id + ':' + u.items.length, kind: 'r', items: u.items, n: 99 });
   });
   return { units, lessons };
 }
@@ -100,7 +111,7 @@ VIEWS.path = () => {
   const units = P.units.filter(u => u.lessons.length).map(u => {
     const nodes = u.lessons.map(L => {
       const dx = DXS[k++ % DXS.length], done = !!PROG.done[L.id], open = lessonOpen(P, L), isCur = cur && cur.id === L.id, stars = lessonStars(L.id);
-      const ic = done ? '✔' : !open ? '🔒' : (L.kind === 'y' ? 'Aa' : '★');
+      const ic = done ? '✔' : !open ? '🔒' : (L.kind === 'y' ? 'Aa' : L.kind === 'd' ? '💬' : L.kind === 'w2' ? '🔁' : L.kind === 'r' ? '🏆' : '★');
       return `<div class="nodebox" style="--dx:${dx}px">
         ${isCur ? `<div class="start-tag">BAŞLA</div>` : ''}
         <button class="node ${done ? 'done' : !open ? 'lock' : ''} ${isCur ? 'cur' : ''}" ${isCur ? 'id="curnode"' : ''} data-act="lesson" data-id="${esc(L.id)}" aria-label="Ders ${L.gi + 1}${done ? ', tamamlandı' : !open ? ', kilitli' : ''}"><span style="font-size:${L.kind === 'y' && ic === 'Aa' ? '1.6rem' : '2rem'}">${ic}</span></button>
@@ -108,7 +119,7 @@ VIEWS.path = () => {
         ${isCur ? `<div class="side-mascot ${dx > 0 ? 'l' : 'r'}">${mascot('happy')}</div>` : ''}
       </div>`;
     }).join('');
-    return `<section class="unit" style="--uc:${u.col}"><div class="ubanner"><div><small>${u.kind === 'w' ? 'BİRİM ' + u.num + ' · SEVİYE ' + u.level : 'HECE BİRİMİ ' + u.num}</small><b>${esc(u.title)}</b></div><span class="ue" aria-hidden="true">${esc(u.emoji)}</span></div><div class="nodes">${nodes}</div></section>`;
+    return `<section class="unit" style="--uc:${u.col}"><div class="ubanner"><div><small>${u.kind === 'w' ? 'BİRİM ' + u.num + ' · SEVİYE ' + u.level : u.kind === 'd' ? 'SOHBET ' + u.num : 'HECE BİRİMİ ' + u.num}</small><b>${esc(u.title)}</b></div><span class="ue" aria-hidden="true">${esc(u.emoji)}</span></div><div class="nodes">${nodes}</div></section>`;
   }).join('');
   const hi = streak() ? `${streak()} gündür çalışıyorsun!` : 'Hadi bugün başlayalım.';
   return `<div class="wrap">${topbar()}<main class="path">
@@ -131,6 +142,7 @@ VIEWS.practice = () => {
     <button class="ptile wide" style="--tc:#7c5cff" data-act="prac" data-m="mix" ${uw.length >= 3 ? '' : 'disabled'}><span aria-hidden="true">🎲</span><div>Karışık<br><small>Her türden birkaç soru</small></div></button>
     ${t('oku', '#3b8be0', '📖', 'Oku', 'Kelimeyi dinle', uw.length >= 1)}${t('hece', '#e0559c', '🔤', 'Hece', 'Heceyi bul', ns >= 3)}
     ${t('konus', '#ff8a5c', '🎤', 'Konuş', 'Sen söyle', uw.length >= 1)}${t('yaz', '#1f9d8a', '✏️', 'Yaz', 'Harfin üstünden geç', uw.length >= 1)}
+    <button class="ptile wide" style="--tc:#e0559c" data-act="prac" data-m="diyalog" ${DIALOGS.some(dlgReady) ? '' : 'disabled'}><span aria-hidden="true">💬</span><div>Sohbet<br><small>Günlük konuşma</small></div></button>
     <button class="ptile wide" style="--tc:#d99a00" data-act="prac" data-m="bul" ${np >= 3 ? '' : 'disabled'}><span aria-hidden="true">🔍</span><div>Bul<br><small>Resmi bul</small></div></button></div></main>${bottomnav('practice')}</div>`;
 };
 ACT.prac = d => { SFX.init(); SFX.play('pop'); startPractice(d.m); };
@@ -140,7 +152,7 @@ const BADGES = [
   ['first', '🌟', 'İlk ders', p => p.lessons >= 1], ['l5', '🎈', '5 ders', p => p.lessons >= 5], ['l20', '🏅', '20 ders', p => p.lessons >= 20],
   ['w25', '📘', '25 kelime', p => p.learned.length >= 25], ['w100', '📚', '100 kelime', p => p.learned.length >= 100], ['w300', '🎓', '300 kelime', p => p.learned.length >= 300],
   ['s3', '🔥', '3 gün seri', p => p.best >= 3], ['s7', '🚀', '7 gün seri', p => p.best >= 7], ['perfect', '💎', 'Hatasız ders', p => p.perfect >= 1],
-  ['goal', '🎯', 'Günlük hedef', p => p.goalDays >= 1], ['xp500', '⭐', '500 puan', p => p.xp >= 500], ['talk', '🎤', 'Konuşkan', p => p.talk >= 20]
+  ['d1', '💬', 'İlk sohbet', p => (p.dlgs || 0) >= 1], ['d10', '🗣️', '10 sohbet', p => (p.dlgs || 0) >= 10], ['goal', '🎯', 'Günlük hedef', p => p.goalDays >= 1], ['xp500', '⭐', '500 puan', p => p.xp >= 500], ['talk', '🎤', 'Konuşkan', p => p.talk >= 20]
 ];
 const rankOf = n => n >= 350 ? 'Kelime kahramanı' : n >= 150 ? 'Kelime ustası' : n >= 50 ? 'Kelime kaşifi' : n >= 10 ? 'Kelime avcısı' : 'Yeni başlayan';
 VIEWS.rewards = () => {
@@ -153,15 +165,61 @@ VIEWS.rewards = () => {
 /* ---------- ders kurulumu ---------- */
 const picPool = () => usableWords().filter(hasQPic);
 const sylReady = w => w.syl.length > 1 && w.syl.every(s => hasKey('y:' + s));
+/* yaz adımları: harf ve kısa kelime; en az yazılan harflerden seçilir, hep aynı harf çıkmaz */
+const fl = L => (CASE_MODE === 'lower' ? trLower(L) : trUpper(L));
+const isLetter = c => /\p{L}/u.test(c);
+function makeYaz(ws, n, opt = {}) {
+  const out = [], used = new Set(), cnt = PROG.letters || {};
+  const pool = shuffle(ws.slice());
+  if (opt.word !== false) {
+    const sw = pool.find(w => w.word.length >= 2 && w.word.length <= 4);
+    if (sw && n >= 2) { out.push({ t: 'yaz', w: sw, text: fl(sw.word), idx: -1 }); }
+  }
+  const cand = [];
+  pool.forEach(w => [...w.word].forEach((c, i) => { if (isLetter(c)) cand.push({ w, i, L: trUpper(c) }); }));
+  shuffle(cand).sort((a, b) => (cnt[a.L] || 0) - (cnt[b.L] || 0));
+  for (const c of cand) {
+    if (out.length >= n) break;
+    if (used.has(c.L)) continue; used.add(c.L);
+    out.push({ t: 'yaz', w: c.w, text: fl(c.L), idx: c.i });
+  }
+  return out;
+}
 function wordSteps(ws, full) {
   const steps = [], pp = picPool().length >= 3;
   ws.forEach(w => { steps.push({ t: 'intro', w }); steps.push(pp && hasQPic(w) ? { t: 'pic', w } : { t: 'txt', w }); });
   if (full) {
     shuffle(ws.filter(sylReady)).slice(0, 2).forEach(w => steps.push({ t: 'sirala', w }));
     shuffle(ws).slice(0, 2).forEach(w => steps.push({ t: 'konus', w }));
-    for (const w of shuffle(ws)) { const L = trUpper(w.word.charAt(0)); steps.push({ t: 'yaz', w, letter: CASE_MODE === 'lower' ? trLower(L) : L }); break; }
+    makeYaz(ws, 2, { word: false }).forEach(s => steps.push(s));
   }
   return steps;
+}
+/* ikinci ders: aynı kelimeleri farklı etkinliklerle pekiştirir (tanıtım yok) */
+function reinforceSteps(ws) {
+  const steps = [], pp = picPool().length >= 3;
+  shuffle(ws).forEach(w => steps.push(pp && hasQPic(w) ? { t: 'pic', w } : { t: 'txt', w }));
+  shuffle(ws).slice(0, 3).forEach(w => steps.push({ t: 'txt', w }));
+  shuffle(ws.filter(sylReady)).slice(0, 3).forEach(w => steps.push({ t: 'sirala', w }));
+  shuffle(ws).slice(0, 3).forEach(w => steps.push({ t: 'konus', w }));
+  makeYaz(ws, 3).forEach(s => steps.push(s));
+  return steps;
+}
+/* birim sonu tekrarı: birimin kelimelerinden karışık */
+function reviewSteps(ws) {
+  const steps = [], pp = picPool().length >= 3, pick = shuffle(ws).slice(0, 8), sy = currSyl();
+  pick.forEach(w => steps.push(pp && hasQPic(w) ? { t: 'pic', w } : { t: 'txt', w }));
+  if (sy.length >= 3) shuffle(sy).slice(0, 2).forEach(s => steps.push({ t: 'hece', syl: s }));
+  shuffle(ws.filter(sylReady)).slice(0, 2).forEach(w => steps.push({ t: 'sirala', w }));
+  shuffle(ws).slice(0, 3).forEach(w => steps.push({ t: 'konus', w }));
+  makeYaz(ws, 3).forEach(s => steps.push(s));
+  return steps;
+}
+/* diyalog: her turda karşı taraf konuşur, öğrenci doğru cevabı seçer, sonra cevabı kendisi söyler */
+function dlgSteps(ids) {
+  const out = [];
+  ids.forEach(id => { const D = dlgOf(id); if (!D) return; D.l.forEach((_, i) => { out.push({ t: 'dlg', d: id, i, pk: dKey(id, i, 'p') }); out.push({ t: 'dsay', d: id, i, key: dKey(id, i, 's') }); }); });
+  return out;
 }
 function sylSteps(ss) {
   const steps = [];
@@ -170,7 +228,7 @@ function sylSteps(ss) {
   return steps;
 }
 function startLesson(L) {
-  const steps = L.kind === 'w' ? wordSteps(L.items, true) : sylSteps(L.items);
+  const steps = L.kind === 'w' ? wordSteps(L.items, true) : L.kind === 'w2' ? reinforceSteps(L.items) : L.kind === 'r' ? reviewSteps(L.items) : L.kind === 'd' ? dlgSteps(L.items) : sylSteps(L.items);
   if (!steps.length) { toast('Bu ders için yeterli sesli içerik yok.'); return; }
   go('ders', { lesson: L, steps, i: 0, total: steps.length, done: 0, mistakes: 0, xp: 0, requeued: 0, practice: false });
 }
@@ -180,15 +238,16 @@ function startPractice(m) {
   else if (m === 'hece') steps = pickBy(currSyl(), 'hece', 6, s => s).map(s => ({ t: 'hece', syl: s }));
   else if (m === 'konus') steps = pickBy(uw, 'konus', 4, w => w.id).map(w => ({ t: 'konus', w }));
   else if (m === 'bul') steps = pickBy(uw.filter(hasQPic), 'bul', 5, w => w.id).map(w => ({ t: 'pic', w }));
-  else if (m === 'yaz') {
-    const seen = new Set();
-    pickBy(uw, 'yaz', 14, w => w.id).forEach(w => { const L = trUpper(w.word.charAt(0)); if (seen.has(L) || steps.length >= 5) return; seen.add(L); steps.push({ t: 'yaz', w, letter: CASE_MODE === 'lower' ? trLower(L) : L }); });
-  } else {
+  else if (m === 'yaz') steps = makeYaz(pickBy(uw, 'yaz', 12, w => w.id), 5);
+  else if (m === 'diyalog') steps = dlgSteps(shuffle(DIALOGS.filter(dlgReady)).slice(0, 2).map(d => d.id));
+  else {
     const ws = shuffle(uw).slice(0, 8), pp = picPool().length >= 3, sy = currSyl();
     ws.slice(0, 3).forEach(w => steps.push(pp && hasQPic(w) ? { t: 'pic', w } : { t: 'txt', w }));
     if (sy.length >= 3) shuffle(sy).slice(0, 2).forEach(s => steps.push({ t: 'hece', syl: s }));
     ws.filter(sylReady).slice(0, 1).forEach(w => steps.push({ t: 'sirala', w }));
     ws.slice(3, 5).forEach(w => steps.push({ t: 'konus', w }));
+    makeYaz(ws, 1, { word: false }).forEach(s => steps.push(s));
+    const dd = shuffle(DIALOGS.filter(dlgReady))[0]; if (dd) dlgSteps([dd.id]).slice(0, 2).forEach(s => steps.push(s));
   }
   if (!steps.length) { toast('Bu pratik için yeterli sesli içerik yok.'); return; }
   go('ders', { lesson: null, steps, i: 0, total: steps.length, done: 0, mistakes: 0, xp: 0, requeued: 0, practice: true, pm: m });
@@ -199,7 +258,8 @@ const curStep = () => V.steps[V.i];
 const stepWord = () => curStep().w;
 const COACH = {
   intro: 'Yeni kelime! Dinle ve dokun.', introy: 'Yeni hece! Dinle.', pic: 'Dinle, doğru resmi bul.', txt: 'Dinle, doğru kelimeyi bul.',
-  hece: 'Dinle, doğru heceyi bul.', sirala: 'Hecelere sırayla dokun.', konus: 'Şimdi sen söyle!', yaz: 'Parmağınla harfin üstünden geç.'
+  hece: 'Dinle, doğru heceyi bul.', sirala: 'Hecelere sırayla dokun.', konus: 'Şimdi sen söyle!', yaz: 'Parmağınla yazının üstünden geç.',
+  dlg: 'Dinle, doğru cevabı seç.', dsay: 'Şimdi cevabı sen söyle!'
 };
 PREP.ders = () => {
   const st = curStep(); V.fb = null; V.mood = 'happy'; V.wrong = []; V.right = null; V.missed = false; V.rec = false; V.busy = false;
@@ -212,6 +272,10 @@ PREP.ders = () => {
   } else if (st.t === 'hece') {
     const pool = currSyl().filter(x => x !== st.syl), same = pool.filter(x => x.length === st.syl.length);
     V.opts = shuffle([st.syl, ...shuffle(same.length >= 2 ? same : pool).slice(0, 2)]);
+  } else if (st.t === 'dlg') {
+    const D = dlgOf(st.d), right = { k: dKey(st.d, st.i, 's'), t: D.l[st.i][1] }, fw = x => x.split(/[ ,.!?]/)[0];
+    const pool = []; DIALOGS.forEach(o => { if (o.id !== st.d && dlgReady(o)) o.l.forEach((pr, j) => { if (fw(pr[1]) !== fw(right.t) && pr[1] !== right.t) pool.push({ k: dKey(o.id, j, 's'), t: pr[1] }); }); });
+    V.opts = shuffle([right, ...shuffle(pool).slice(0, 2)]);
   } else if (st.t === 'sirala') {
     V.bank = shuffle(st.w.syl.map((s, i) => ({ s, i }))); V.built = []; V.badIdx = -1;
     if (st.w.syl.length > 1 && V.bank.map(b => b.s).join('|') === st.w.syl.join('|')) V.bank.reverse();
@@ -224,7 +288,7 @@ function footInner() {
   if (f && f.k === 'bad') return `<div class="in"><div class="msg">${esc(f.msg)}</div></div>`;
   const st = curStep();
   if (st.t === 'intro' || st.t === 'introy') return `<div class="in"><button class="cta block" data-act="cont">Devam</button></div>`;
-  if (st.t === 'konus' || st.t === 'yaz') return `<div class="in"><button class="cta ghost block" data-act="skip">Atla</button></div>`;
+  if (st.t === 'konus' || st.t === 'yaz' || st.t === 'dsay') return `<div class="in"><button class="cta ghost block" data-act="skip">Atla</button></div>`;
   return '';
 }
 const footClass = () => 'lfoot' + (V.fb ? ' ' + V.fb.k : '');
@@ -236,6 +300,11 @@ function coach(text) {
 const picBox = w => hasPic(w) ? `<button class="pic2" data-act="sayWord" aria-label="${esc(w.word)} dinle">${picHtml(w)}</button>` : '';
 const hearBtn = (cls = '') => `<button class="hear ${cls}" data-act="sayStep" aria-label="Dinle">🔊</button>`;
 
+function micCtl() {
+  if (V.busy) return `<div class="micwrap"><p>Bir saniye…</p></div>`;
+  if (V.child) return `<div class="row2"><button class="cta ghost" data-act="sayStep">▶ ${esc(profName())}</button><button class="cta ghost" data-act="playChild">▶ Ben</button><button class="cta ghost" data-act="retry">↻</button></div>`;
+  return `<div class="micwrap"><button class="mic2 ${V.rec ? 'rec' : ''}" data-act="micToggle" aria-label="${V.rec ? 'Bitir' : 'Söyle'}">${V.rec ? '■' : '🎤'}</button><p>${V.rec ? 'Dinliyorum…' : 'Dokun ve söyle'}</p></div><button class="cta ghost" data-act="sayStep">▶ ${esc(profName())}</button>`;
+}
 const STEPV = {
   intro: st => {
     const w = st.w, ok = sylReady(w);
@@ -255,29 +324,61 @@ const STEPV = {
   },
   konus: st => {
     const w = st.w, txt = w ? fmt(w.word) : fmt(st.syl, false);
-    let ctl;
-    if (V.busy) ctl = `<div class="micwrap"><p>Bir saniye…</p></div>`;
-    else if (V.child) ctl = `<div class="row2"><button class="cta ghost" data-act="sayStep">▶ ${esc(profName())}</button><button class="cta ghost" data-act="playChild">▶ Ben</button><button class="cta ghost" data-act="retry">↻</button></div>`;
-    else ctl = `<div class="micwrap"><button class="mic2 ${V.rec ? 'rec' : ''}" data-act="micToggle" aria-label="${V.rec ? 'Bitir' : 'Söyle'}">${V.rec ? '■' : '🎤'}</button><p>${V.rec ? 'Dinliyorum…' : 'Dokun ve söyle'}</p></div><button class="cta ghost" data-act="sayStep">▶ ${esc(profName())}</button>`;
-    return `${coach(COACH.konus)}${w ? picBox(w) : ''}<div class="${w ? 'bigword' : 'bigsyl'}">${esc(txt)}</div>${ctl}`;
+    return `${coach(COACH.konus)}${w ? picBox(w) : ''}<div class="${w ? 'bigword' : 'bigsyl'}">${esc(txt)}</div>${micCtl()}`;
   },
-  yaz: st => `${coach(COACH.yaz)}<div class="row2" style="align-items:center">${hasPic(st.w) ? `<div class="pic2" style="width:84px;border-radius:20px">${picHtml(st.w)}</div>` : ''}<div class="bigword" style="font-size:2.4rem">${esc(fmt(st.w.word))}</div></div>
+  yaz: st => {
+    const w = fmt(st.w.word), word = st.idx >= 0 ? [...w].map((c, i) => i === st.idx ? `<u>${esc(c)}</u>` : esc(c)).join('') : esc(w);
+    return `${coach(COACH.yaz)}<div class="row2" style="align-items:center">${hasPic(st.w) ? `<div class="pic2" style="width:84px;border-radius:20px">${picHtml(st.w)}</div>` : ''}<div class="bigword yzw" style="font-size:2.4rem">${word}</div></div>
     <div class="letterbox"><canvas id="cvg" width="360" height="360"></canvas><canvas id="cvd" width="360" height="360" aria-label="Çizim alanı"></canvas></div>
-    <button class="cta ghost" data-act="yazClear">↻ Sil</button>`
+    <button class="cta ghost" data-act="yazClear">↻ Sil</button>`;
+  },
+  dlg: st => {
+    const D = dlgOf(st.d), done = V.right;
+    return `${coach(COACH.dlg)}<div class="scene"><span aria-hidden="true">${D.e}</span><b>${esc(D.t)}</b></div>
+    <div class="chat">${chatHtml(D, st.i, done ? 2 : 1)}</div>
+    ${done ? '' : hearBtn()}
+    <div class="dopts">${V.opts.map(o => `<div class="dopt"><button class="hear sm" data-act="sayKey" data-k="${esc(o.k)}" aria-label="Dinle">🔊</button><button class="opt t ${V.wrong.includes(o.k) ? 'bad' : ''} ${V.right === o.k ? 'good' : V.right ? 'dim' : ''}" data-act="dpick" data-k="${esc(o.k)}">${esc(o.t)}</button></div>`).join('')}</div>`;
+  },
+  dsay: st => {
+    const D = dlgOf(st.d), txt = D.l[st.i][1];
+    return `${coach(COACH.dsay)}<div class="scene"><span aria-hidden="true">${D.e}</span><b>${esc(D.t)}</b></div>
+    <div class="chat">${chatHtml(D, st.i, 1)}</div><div class="bigline">${esc(txt)}</div>${micCtl()}`;
+  }
+};
+/* sohbet balonları: önceki turlar + bu turun karşı tarafı (+ seçilen cevap) */
+function chatHtml(D, i, upto) {
+  let h = '';
+  for (let j = 0; j <= i; j++) {
+    h += `<div class="cb"><button class="cbs" data-act="sayKey" data-k="${esc(dKey(D.id, j, 'p'))}" aria-label="Dinle">🔊</button>${esc(D.l[j][0])}</div>`;
+    if (j < i || upto === 2) h += `<div class="cb me">${esc(D.l[j][1])}</div>`;
+  }
+  return h;
+}
+ACT.sayKey = d => { say(d.k); };
+ACT.dpick = async d => {
+  if (V.right) return;
+  const st = curStep(), tk = tok, key = dKey(st.d, st.i, 's');
+  if (d.k === key) {
+    V.right = key; xpAdd(V.missed ? 5 : 10); log('diyalog', key, V.missed ? 'miss' : 'ok');
+    const k = goodFb(); render(); await say(key); if (tk === tok) await say(k);
+  } else {
+    V.missed = true; V.mistakes++; if (!V.wrong.length) requeue(); V.wrong.push(d.k); log('diyalog', key, 'miss');
+    badFb(); render(); await say('fb:bir-daha'); if (tk === tok) say(st.pk);
+  }
 };
 VIEWS.ders = () => {
   const st = curStep(), fi = footInner();
   return `<div class="lesson"><header class="lhead"><button class="lx" data-act="lessonExit" aria-label="Çık">✕</button><div class="lprog" role="progressbar" aria-valuenow="${prog()}"><i style="width:${prog()}%"></i></div></header>
     <main class="lbody">${STEPV[st.t](st)}</main><footer id="foot" class="${footClass()}" ${fi ? '' : 'style="display:none"'}>${fi}</footer></div>`;
 };
-const stepKey = () => { const st = curStep(); return st.w ? 'w:' + st.w.id : 'y:' + st.syl; };
+const stepKey = () => { const st = curStep(); return st.key || st.pk || (st.w ? 'w:' + st.w.id : 'y:' + st.syl); };
 AFTER.ders = async () => {
   const st = curStep(); if (!V.fresh) return; V.fresh = false; const t = tok;
   if (st.t === 'yaz') initYaz();
   if (st.t === 'intro' && V.i === 0 && !V.practice) { await say('ui:yeni'); if (t !== tok) return; }
   if (st.t === 'pic' && !V.hintPic) { V.hintPic = true; }
   if (st.t === 'yaz') { await say('ui:harf'); return; }
-  if (st.t === 'konus') { await say(stepKey()); if (t === tok && !V.hintSay) { V.hintSay = true; await say('ui:soyle'); } return; }
+  if (st.t === 'konus' || st.t === 'dsay') { await say(stepKey()); if (t === tok && !V.hintSay) { V.hintSay = true; await say('ui:soyle'); } return; }
   await say(stepKey());
 };
 ACT.sayStep = () => { say(stepKey()); };
@@ -364,14 +465,14 @@ ACT.micToggle = async () => {
   autoStop = setTimeout(() => { if (V.rec) finishChild(); }, 6000);
 };
 async function finishChild() {
-  clearTimeout(autoStop); const t = tok, st = curStep(), id = st.w ? st.w.id : 'y:' + st.syl; V.rec = false; V.mood = 'happy';
+  clearTimeout(autoStop); const t = tok, st = curStep(), id = st.key || (st.w ? st.w.id : 'y:' + st.syl); V.rec = false; V.mood = 'happy';
   let wav;
   try { wav = await clipFromBlob(await recStop()); } catch (e) { if (t === tok) { toast(e.message || 'Kayıt alınamadı.'); render(); } return; }
   if (t !== tok) return;
   await DB.put('c|' + id, { buf: wav, type: 'audio/wav' }); invalidate('c|' + id);
   V.child = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
   let cls = null, heard = '';
-  if (S.cfg.asr && Bridge.ready()) {
+  if (S.cfg.asr && Bridge.ready() && !st.key) {
     V.busy = true; render();
     try { const r = await asrCheck(new Blob([wav], { type: 'audio/wav' }), { text: st.w ? st.w.word : st.syl, kind: st.w ? 'w' : 'y' }); cls = r.cls; heard = r.text; } catch (e) { /* tanıma yoksa sessizce devam */ }
     if (t !== tok) return;
@@ -389,13 +490,15 @@ ACT.retry = () => { PREP.ders(); render(); };
 /* yaz */
 function initYaz() {
   const st = curStep(), g = el('cvg'), gc = g.getContext('2d'), d = el('cvd'), dc = d.getContext('2d');
-  gc.font = 'bold 300px Lexend,"Segoe UI",Arial,sans-serif'; gc.fillStyle = '#d9d5f0'; gc.textAlign = 'center'; gc.textBaseline = 'middle';
-  gc.fillText(st.letter, 180, 195);
-  dc.lineCap = 'round'; dc.lineJoin = 'round'; dc.lineWidth = 30;
+  const fam = 'Lexend,"Segoe UI",Arial,sans-serif'; let fs = 300;
+  gc.font = 'bold ' + fs + 'px ' + fam; const mw = gc.measureText(st.text).width; if (mw > 320) fs = Math.floor(fs * 320 / mw);
+  gc.font = 'bold ' + fs + 'px ' + fam; gc.fillStyle = '#d9d5f0'; gc.textAlign = 'center'; gc.textBaseline = 'middle';
+  gc.fillText(st.text, 180, 180 + fs * 0.05);
+  dc.lineCap = 'round'; dc.lineJoin = 'round'; dc.lineWidth = Math.max(22, Math.round(fs * 0.1)); V.pen = dc.lineWidth;
   dc.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c5cff'; dc.fillStyle = dc.strokeStyle;
   let drawing = false, last = null;
   const pos = e => { const r = d.getBoundingClientRect(); return { x: (e.clientX - r.left) * d.width / r.width, y: (e.clientY - r.top) * d.height / r.height }; };
-  d.onpointerdown = e => { e.preventDefault(); d.setPointerCapture(e.pointerId); drawing = true; last = pos(e); dc.beginPath(); dc.arc(last.x, last.y, 15, 0, 7); dc.fill(); };
+  d.onpointerdown = e => { e.preventDefault(); d.setPointerCapture(e.pointerId); drawing = true; last = pos(e); dc.beginPath(); dc.arc(last.x, last.y, V.pen / 2, 0, 7); dc.fill(); };
   d.onpointermove = e => { if (!drawing) return; const p = pos(e); dc.beginPath(); dc.moveTo(last.x, last.y); dc.lineTo(p.x, p.y); dc.stroke(); last = p; };
   const end = () => { if (!drawing) return; drawing = false; checkCoverage(gc, dc); };
   d.onpointerup = end; d.onpointercancel = end;
@@ -405,8 +508,8 @@ function checkCoverage(gc, dc) {
   const a = gc.getImageData(0, 0, 360, 360).data, b = dc.getImageData(0, 0, 360, 360).data;
   let tot = 0, hit = 0;
   for (let y = 0; y < 360; y += 3) for (let x = 0; x < 360; x += 3) { const i = (y * 360 + x) * 4 + 3; if (a[i] > 40) { tot++; if (b[i] > 40) hit++; } }
-  if (tot && hit / tot >= 0.6) {
-    V.ok = true; log('yaz', stepWord().id, 'ok'); xpAdd(10);
+  if (tot && hit / tot >= (curStep().text.length > 1 ? 0.5 : 0.6)) {
+    V.ok = true; log('yaz', stepWord().id, 'ok'); xpAdd(10); { const L = trUpper(curStep().text); if (L.length === 1) { PROG.letters = PROG.letters || {}; PROG.letters[L] = (PROG.letters[L] || 0) + 1; } }
     const k = goodFb(); setFoot(); const c = el('coach'); if (c) c.outerHTML = coach(COACH.yaz); say(k);
   }
 }
@@ -425,6 +528,7 @@ function finishLesson() {
   let newWords = 0;
   if (L) {
     PROG.done[L.id] = Math.max(PROG.done[L.id] || 0, stars); PROG.lessons++;
+    if (L.kind === 'd') PROG.dlgs = (PROG.dlgs || 0) + 1;
     if (L.kind === 'w') L.items.forEach(w => { if (!PROG.learned.includes(w.id)) { PROG.learned.push(w.id); newWords++; } });
     if (stars === 3 && mistakes === 0) PROG.perfect = (PROG.perfect || 0) + 1;
   }

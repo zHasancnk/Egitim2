@@ -205,3 +205,14 @@ body.learner #toast{bottom:96px}
 .pic2 img.svgp{object-fit:contain;padding:10%}
 .opt.p img.svgp{width:78%;height:78%;object-fit:contain}
 .thumb img.svgp{object-fit:contain}
+
+.yzw u{color:var(--accent,#7c5cff);text-decoration:none;border-bottom:5px solid currentColor}
+.scene{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--lmut);font-size:1.05rem}.scene span{font-size:2rem}
+.chat{display:flex;flex-direction:column;gap:8px;width:100%;max-width:520px}
+.cb{align-self:flex-start;max-width:88%;padding:10px 14px;border-radius:20px 20px 20px 6px;border:3px solid var(--lline);background:#fff;font-weight:800;color:var(--link);font-size:1.15rem;display:flex;align-items:center;gap:8px}
+.cb.me{align-self:flex-end;border-radius:20px 20px 6px 20px;background:#efeaff;border-color:#cfc4ff}
+.cbs{background:none;padding:0;font-size:1.2rem;border:0}
+.dopts{display:flex;flex-direction:column;gap:10px;width:100%;max-width:520px}
+.dopt{display:flex;gap:8px;align-items:stretch}.dopt .opt.t{flex:1;font-size:1.2rem;min-height:60px;padding:8px 12px;text-align:left;justify-content:flex-start}
+.hear.sm{width:52px;min-width:52px;height:auto;border-radius:18px;font-size:1.3rem}
+.bigline{font-size:1.7rem;font-weight:800;text-align:center;color:var(--link);padding:0 8px}
